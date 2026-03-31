@@ -53,7 +53,7 @@
             border-radius: 12px;
             border-left: 6px solid var(--accent-color);
             word-break: keep-all;
-            white-space: pre-line; /* 줄바꿈 유지 */
+            white-space: pre-line;
         }
 
         .controls {
@@ -141,6 +141,7 @@
 <script>
     let mediaRecorder;
     let audioChunks = [];
+    let audioBlob;
     let audioUrl = '';
 
     const recordBtn = document.getElementById('recordBtn');
@@ -155,11 +156,23 @@
         } else {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                
+                // 코덱 호환성 해결을 위한 MIME 타입 우선순위 설정
+                const types = [
+                    "audio/webm;codecs=opus",
+                    "audio/webm",
+                    "audio/ogg;codecs=opus",
+                    "audio/mp4",
+                    "audio/aac"
+                ];
+                let supportedType = types.find(type => MediaRecorder.isTypeSupported(type)) || "";
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType: supportedType });
                 audioChunks = [];
 
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) audioChunks.push(e.data);
+                };
                 
                 mediaRecorder.onstart = () => {
                     recordBtn.classList.add('recording');
@@ -171,12 +184,17 @@
                     recordBtn.classList.remove('recording');
                     recordBtn.innerText = "🎤 다시 녹음하기";
                     
-                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    // Blob 생성 시 MIME 타입을 명시적으로 지정
+                    audioBlob = new Blob(audioChunks, { type: supportedType || 'audio/wav' });
+                    
                     if (audioUrl) URL.revokeObjectURL(audioUrl); 
                     audioUrl = URL.createObjectURL(audioBlob);
                     
                     audioPlayback.src = audioUrl;
                     statusText.innerText = "녹음 완료! '들어보기'나 '저장하기'를 누르세요.";
+                    
+                    // 마이크 스트림 종료 (배터리 및 보안)
+                    stream.getTracks().forEach(track => track.stop());
                 };
 
                 mediaRecorder.start();
@@ -188,18 +206,29 @@
 
     playBtn.onclick = () => {
         if (!audioUrl) return alert("먼저 녹음을 완료해 주세요!");
+        audioPlayback.currentTime = 0;
         audioPlayback.play();
     };
 
     downloadBtn.onclick = () => {
-        if (!audioUrl) return alert("저장할 녹음본이 없습니다!");
+        if (!audioBlob || !audioUrl) return alert("저장할 녹음본이 없습니다!");
+        
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = audioUrl;
-        a.download = `coraline_reading_${new Date().getTime()}.mp3`;
+        
+        // 확장자를 MIME 타입에 맞춰 동적으로 결정
+        const extension = audioBlob.type.includes('mp4') ? 'mp4' : 
+                         audioBlob.type.includes('webm') ? 'webm' : 'wav';
+        
+        a.download = `coraline_reading_${new Date().getTime()}.${extension}`;
         document.body.appendChild(a);
         a.click();
-        setTimeout(() => document.body.removeChild(a), 100);
+        
+        // iOS 등에서 다운로드 후 바로 삭제되면 오류 날 수 있어 지연 삭제
+        setTimeout(() => {
+            document.body.removeChild(a);
+        }, 500);
     };
 </script>
 
