@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coraline Reading Practice</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #e0e0e0;
+            --accent-color: #ff4757;
+            --secondary-color: #2f3542;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h2 {
+            color: var(--accent-color);
+            margin-bottom: 25px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .passage {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            text-align: left;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-left: 4px solid var(--accent-color);
+            background-color: rgba(0,0,0,0.2);
+            font-style: italic;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #recordBtn {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        #recordBtn.recording {
+            animation: pulse 1.5s infinite;
+            background-color: #ff6b81;
+        }
+
+        #playBtn {
+            background-color: #2ed573;
+            color: white;
+            display: none;
+        }
+
+        button:disabled {
+            background-color: #57606f;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 20px;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .status {
+            font-size: 0.9rem;
+            color: #a4b0be;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Reading Practice: Coraline</h2>
+    
+    <div class="passage">
+        "Her other mother reached out her free hand and beckoned gently with one white finger. Her pale lips mouthed, ‘Come back soon,’ although she said nothing aloud. <br><br>
+        Coraline took a deep breath and stepped into the darkness, where strange voices whispered and distant winds howled. She became certain that there was something in the dark behind her: something very old and very slow. Her heart beat so hard and so loudly she was scared it would burst out of her chest. She closed her eyes against the dark. <br><br>
+        Eventually she bumped into something, and opened her eyes, startled. She had bumped into an armchair, in her drawing room. <br><br>
+        The open doorway behind her was blocked by rough red bricks. <br><br>
+        She was home."
+    </div>
+
+    <div class="controls">
+        <button id="recordBtn">🔴 Record</button>
+        <button id="playBtn">▶ Play Back</button>
+    </div>
+    
+    <p class="status" id="status">Ready to record...</p>
+    <audio id="audioPlayback" controls></audio>
+</div>
+
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+    const recordBtn = document.getElementById('recordBtn');
+    const playBtn = document.getElementById('playBtn');
+    const statusText = document.getElementById('status');
+    const audioPlayback = document.getElementById('audioPlayback');
+
+    recordBtn.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+            recordBtn.classList.remove('recording');
+            recordBtn.innerHTML = "🔴 Record Again";
+            statusText.innerText = "Recording saved!";
+        } else {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayback.src = audioUrl;
+                playBtn.style.display = "flex";
+            };
+
+            mediaRecorder.start();
+            recordBtn.classList.add('recording');
+            recordBtn.innerHTML = "⏹ Stop";
+            statusText.innerText = "Recording... Read the passage aloud!";
+        }
+    });
+
+    playBtn.addEventListener('click', () => {
+        audioPlayback.play();
+        statusText.innerText = "Playing back your reading...";
+    });
+</script>
+
+</body>
+</html>
