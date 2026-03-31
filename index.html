@@ -40,11 +40,10 @@
             color: var(--accent-color);
             font-size: 1.6rem;
             margin-bottom: 20px;
-            letter-spacing: 1px;
         }
 
         .passage {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             line-height: 1.8;
             text-align: left;
             margin-bottom: 25px;
@@ -52,7 +51,6 @@
             background: rgba(255,255,255,0.05);
             border-radius: 12px;
             border-left: 6px solid var(--accent-color);
-            word-break: keep-all;
             white-space: pre-line;
         }
 
@@ -70,45 +68,21 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
         }
 
-        #recordBtn {
-            background-color: var(--accent-color);
-            color: white;
-            grid-column: span 2;
-        }
-
-        #recordBtn.recording {
-            background-color: #57606f;
-            animation: pulse 1.2s infinite;
-        }
-
+        #recordBtn { background-color: var(--accent-color); color: white; grid-column: span 2; }
+        #recordBtn.recording { background-color: #57606f; animation: pulse 1.2s infinite; }
         #playBtn { background-color: var(--play-color); color: white; }
         #downloadBtn { background-color: var(--save-color); color: white; }
 
-        audio {
-            width: 100%;
-            margin-top: 20px;
-            border-radius: 10px;
-            display: none;
-        }
+        audio { width: 100%; margin-top: 20px; display: none; }
+        .status { font-size: 0.9rem; color: #aaa; margin-top: 15px; }
 
-        .status {
-            font-size: 0.9rem;
-            color: #aaa;
-            margin-top: 15px;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); opacity: 0.8; }
-            100% { transform: scale(1); }
-        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { opacity: 0.8; } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -129,19 +103,18 @@
     </div>
 
     <div class="controls">
-        <button id="recordBtn">🎤 녹음 시작/중지 (Record/Stop)</button>
-        <button id="playBtn">▶ 들어보기 (Play)</button>
-        <button id="downloadBtn">💾 내 폰에 저장 (Save)</button>
+        <button id="recordBtn">🎤 녹음 시작/중지</button>
+        <button id="playBtn">▶ 들어보기</button>
+        <button id="downloadBtn">💾 내 폰에 저장</button>
     </div>
     
-    <audio id="audioPlayback" controls></audio>
-    <p class="status" id="status">마이크 버튼을 눌러 읽기를 시작하세요.</p>
+    <audio id="audioPlayback" controls playsinline></audio>
+    <p class="status" id="status">마이크 버튼을 눌러주세요.</p>
 </div>
 
 <script>
     let mediaRecorder;
     let audioChunks = [];
-    let audioBlob;
     let audioUrl = '';
 
     const recordBtn = document.getElementById('recordBtn');
@@ -157,78 +130,54 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // 코덱 호환성 해결을 위한 MIME 타입 우선순위 설정
-                const types = [
-                    "audio/webm;codecs=opus",
-                    "audio/webm",
-                    "audio/ogg;codecs=opus",
-                    "audio/mp4",
-                    "audio/aac"
-                ];
-                let supportedType = types.find(type => MediaRecorder.isTypeSupported(type)) || "";
+                // 아이폰 호환성을 위한 최적의 타입 찾기
+                const mimeTypes = ['audio/mp4', 'audio/aac', 'audio/mpeg', 'audio/webm;codecs=opus'];
+                let selectedType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || '';
 
-                mediaRecorder = new MediaRecorder(stream, { mimeType: supportedType });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: selectedType });
                 audioChunks = [];
 
-                mediaRecorder.ondataavailable = e => {
-                    if (e.data.size > 0) audioChunks.push(e.data);
-                };
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
                 
                 mediaRecorder.onstart = () => {
                     recordBtn.classList.add('recording');
-                    recordBtn.innerText = "⏹ 녹음 중지 (Stop)";
-                    statusText.innerText = "녹음 중... 큰 소리로 읽어주세요!";
+                    recordBtn.innerText = "⏹ 중지";
+                    statusText.innerText = "녹음 중...";
                 };
 
                 mediaRecorder.onstop = () => {
                     recordBtn.classList.remove('recording');
-                    recordBtn.innerText = "🎤 다시 녹음하기";
+                    recordBtn.innerText = "🎤 다시 녹음";
                     
-                    // Blob 생성 시 MIME 타입을 명시적으로 지정
-                    audioBlob = new Blob(audioChunks, { type: supportedType || 'audio/wav' });
-                    
-                    if (audioUrl) URL.revokeObjectURL(audioUrl); 
-                    audioUrl = URL.createObjectURL(audioBlob);
+                    // 핵심: Blob 생성 시 타입을 명시적으로 지정
+                    const blob = new Blob(audioChunks, { type: selectedType });
+                    if (audioUrl) URL.revokeObjectURL(audioUrl);
+                    audioUrl = URL.createObjectURL(blob);
                     
                     audioPlayback.src = audioUrl;
-                    statusText.innerText = "녹음 완료! '들어보기'나 '저장하기'를 누르세요.";
-                    
-                    // 마이크 스트림 종료 (배터리 및 보안)
-                    stream.getTracks().forEach(track => track.stop());
+                    statusText.innerText = "녹음 완료! '저장' 후 파일 앱에서 확인하세요.";
+                    stream.getTracks().forEach(t => t.stop());
                 };
 
                 mediaRecorder.start();
             } catch (err) {
-                alert("마이크 접근 권한이 필요합니다. 설정에서 허용해 주세요.");
+                alert("마이크 권한이 필요합니다.");
             }
         }
     };
 
-    playBtn.onclick = () => {
-        if (!audioUrl) return alert("먼저 녹음을 완료해 주세요!");
-        audioPlayback.currentTime = 0;
-        audioPlayback.play();
-    };
+    playBtn.onclick = () => { if(audioUrl) audioPlayback.play(); };
 
     downloadBtn.onclick = () => {
-        if (!audioBlob || !audioUrl) return alert("저장할 녹음본이 없습니다!");
-        
+        if (!audioUrl) return;
         const a = document.createElement('a');
-        a.style.display = 'none';
         a.href = audioUrl;
-        
-        // 확장자를 MIME 타입에 맞춰 동적으로 결정
-        const extension = audioBlob.type.includes('mp4') ? 'mp4' : 
-                         audioBlob.type.includes('webm') ? 'webm' : 'wav';
-        
-        a.download = `coraline_reading_${new Date().getTime()}.${extension}`;
+        // 아이폰은 확장자가 명확해야 소리가 납니다.
+        const isMp4 = mediaRecorder.mimeType.includes('mp4');
+        a.download = `reading_${new Date().getTime()}.${isMp4 ? 'm4a' : 'webm'}`;
         document.body.appendChild(a);
         a.click();
-        
-        // iOS 등에서 다운로드 후 바로 삭제되면 오류 날 수 있어 지연 삭제
-        setTimeout(() => {
-            document.body.removeChild(a);
-        }, 500);
+        setTimeout(() => document.body.removeChild(a), 500);
     };
 </script>
 
