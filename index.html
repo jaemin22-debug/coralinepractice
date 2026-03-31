@@ -1,132 +1,7 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coraline Reading Practice</title>
-    <style>
-        :root {
-            --bg-color: #121212;
-            --card-bg: #1e1e1e;
-            --text-color: #ececec;
-            --accent-color: #ff4757;
-            --save-color: #3742fa;
-            --play-color: #2ed573;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 15px;
-        }
-
-        .container {
-            background-color: var(--card-bg);
-            padding: 30px 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
-            max-width: 600px;
-            width: 100%;
-            text-align: center;
-        }
-
-        h2 {
-            color: var(--accent-color);
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-        }
-
-        .passage {
-            font-size: 1.1rem;
-            line-height: 1.7;
-            text-align: left;
-            margin-bottom: 25px;
-            padding: 20px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            border-left: 5px solid var(--accent-color);
-            word-break: keep-all;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        button {
-            padding: 15px 10px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        #recordBtn {
-            background-color: var(--accent-color);
-            color: white;
-            grid-column: span 2;
-        }
-
-        #recordBtn.recording {
-            background-color: #57606f;
-            animation: pulse 1s infinite;
-        }
-
-        #playBtn { background-color: var(--play-color); color: white; display: none; }
-        #downloadBtn { background-color: var(--save-color); color: white; display: none; }
-
-        audio {
-            width: 100%;
-            margin-top: 20px;
-            border-radius: 10px;
-            display: none;
-        }
-
-        .status {
-            font-size: 0.85rem;
-            color: #888;
-            margin-top: 15px;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h2>Coraline Reading</h2>
-    
-    <div class="passage">
-        "Her other mother reached out her free hand and beckoned gently with one white finger... <br><br>
-        Coraline took a deep breath and stepped into the darkness... She was home."
-    </div>
-
-    <div class="controls">
-        <button id="recordBtn">🎤 시작하기 (Record)</button>
-        <button id="playBtn">▶ 들어보기 (Play)</button>
-        <button id="downloadBtn">💾 저장하기 (Save)</button>
-    </div>
-    
-    <audio id="audioPlayback" controls></audio>
-    <p class="status" id="status">마이크 버튼을 눌러 읽기를 시작하세요.</p>
+<div class="controls">
+    <button id="recordBtn" style="grid-column: span 2;">🎤 녹음 시작/중지</button>
+    <button id="playBtn" style="background-color: #2ed573; color: white;">▶ 들어보기</button>
+    <button id="downloadBtn" style="background-color: #3742fa; color: white;">💾 내 폰에 저장</button>
 </div>
 
 <script>
@@ -138,64 +13,44 @@
     const playBtn = document.getElementById('playBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const audioPlayback = document.getElementById('audioPlayback');
-    const statusText = document.getElementById('status');
 
     recordBtn.onclick = async () => {
         if (mediaRecorder && mediaRecorder.state === "recording") {
             mediaRecorder.stop();
+            recordBtn.innerText = "🎤 다시 녹음하기";
+            recordBtn.style.backgroundColor = "#ff4757";
         } else {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // 모바일 호환성을 위해 mimeType 체크
-                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-                mediaRecorder = new MediaRecorder(stream, { mimeType });
-                audioChunks = [];
-
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                
-                mediaRecorder.onstart = () => {
-                    recordBtn.classList.add('recording');
-                    recordBtn.innerText = "⏹ 멈추기 (Stop)";
-                    statusText.innerText = "녹음 중입니다...";
-                    playBtn.style.display = "none";
-                    downloadBtn.style.display = "none";
-                    audioPlayback.style.display = "none";
-                };
-
-                mediaRecorder.onstop = () => {
-                    recordBtn.classList.remove('recording');
-                    recordBtn.innerText = "🎤 다시 녹음하기";
-                    
-                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                    if (audioUrl) URL.revokeObjectURL(audioUrl); // 이전 메모리 해제
-                    audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    audioPlayback.src = audioUrl;
-                    audioPlayback.style.display = "block";
-                    playBtn.style.display = "flex";
-                    downloadBtn.style.display = "flex";
-                    statusText.innerText = "녹음 완료! 아래 버튼으로 확인하세요.";
-                };
-
-                mediaRecorder.start();
-            } catch (err) {
-                alert("마이크 접근 권한이 필요합니다: " + err);
-            }
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+            mediaRecorder = new MediaRecorder(stream, { mimeType });
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstart = () => {
+                recordBtn.innerText = "⏹ 녹음 중지 (Stop)";
+                recordBtn.style.backgroundColor = "#57606f";
+            };
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayback.src = audioUrl;
+                alert("녹음이 완료되었습니다! '들어보기'나 '저장하기'를 누르세요.");
+            };
+            mediaRecorder.start();
         }
     };
 
-    playBtn.onclick = () => audioPlayback.play();
+    playBtn.onclick = () => {
+        if (!audioUrl) return alert("먼저 녹음을 해주세요!");
+        audioPlayback.play();
+    };
 
     downloadBtn.onclick = () => {
+        if (!audioUrl) return alert("저장할 녹음 본이 없습니다!");
         const a = document.createElement('a');
-        a.style.display = 'none';
         a.href = audioUrl;
-        a.download = `coraline_reading_${new Date().getTime()}.mp3`;
+        a.download = `coraline_reading.mp3`;
         document.body.appendChild(a);
         a.click();
-        setTimeout(() => document.body.removeChild(a), 100);
+        document.body.removeChild(a);
     };
 </script>
-
-</body>
-</html>
